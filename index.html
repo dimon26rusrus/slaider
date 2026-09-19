@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Слайдер До/После - автономный пример</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --container-max: 900px; --handle: #fff; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+           padding: 2rem; background: #f5f5f5; color: #333; }
+    .ba-slider {
+      position: relative; width: 100%; max-width: var(--container-max);
+      margin: 0 auto; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,.08); background: #000;
+      user-select: none; aspect-ratio: 16/9;
+    }
+    .ba-slider img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+    /* "после" изображение в окне, чья ширина задаёт уровень reveal */
+    .ba-slider .after {
+      position: absolute; top: 0; left: 0; height: 100%; width: 50%;
+      overflow: hidden;
+    }
+
+    .ba-slider .after img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* линейка-разделитель (полоса) */
+    .ba-slider .handle {
+      position: absolute; top: 0; bottom: 0; width: 3px;
+      background: var(--handle); cursor: col-resize;
+      border-left: 1px solid rgba(0,0,0,.4);
+      border-right: 1px solid rgba(0,0,0,.4);
+      transform: translateX(-1.5px); z-index: 3;
+    }
+
+    /* кнопка-ручка (для лучшей доступности можно сделать круглую) */
+    .ba-slider .handle:focus { outline: 2px solid #fff; outline-offset: 2px; }
+
+    /* ползунок для альтернативного управления */
+    .ba-range { width: 100%; margin-top: 0.75rem; }
+
+  </style>
+</head>
+<body>
+
+  <h2>Слайдер До и После - автономный пример</h2>
+  <p>Перемещайте ползунок или линейку, чтобы увидеть разницу между двумя изображениями.</p>
+
+  <div class="ba-slider" aria-label="Слайдер до и после" role="img" style="min-height: 320px;">
+    <!-- ДО изображение -->
+    <img id="beforeImage" src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60" alt="До" />
+
+    <!-- ПОСЛЕ изображение (оверлей) -->
+    <div class="after" id="afterOverlay" style="width:50%">
+      <img id="afterImage" src="https://images.unsplash.com/photo-1523411820348-2e784b0a3b6d?auto=format&fit=crop&w=1200&q=60" alt="После" />
+    </div>
+
+    <div class="handle" id="handle" tabindex="0" aria-label="Переместить границу до/после" style="left:50%"></div>
+
+    <input type="range" min="0" max="100" value="50" class="ba-range" id="baRange" aria-label="Ползунок сравнения">
+  </div>
+
+  <!-- Контролы загрузки фото (ДО и ПОСЛЕ) -->
+  <div class="upload-controls" style="margin-top: 1rem;">
+    <label>Фото ДО: <input id="beforeInput" type="file" accept="image/*"></label>
+    <span style="margin-left: 1rem"></span>
+    <label>Фото ПОСЛЕ: <input id="afterInput" type="file" accept="image/*"></label>
+  </div>
+
+  <script>
+    (function() {
+      const container = document.querySelector('.ba-slider');
+      const afterOverlay = document.getElementById('afterOverlay');
+      const handle = document.getElementById('handle');
+      const range = document.getElementById('baRange');
+
+      // Фото ДО/ПОСЛЕ
+      const beforeInput = document.getElementById('beforeInput');
+      const afterInput = document.getElementById('afterInput');
+      const beforeImg = document.getElementById('beforeImage');
+      const afterImg = document.getElementById('afterImage');
+      let beforeUrl, afterUrl;
+
+      function update(percent) {
+        afterOverlay.style.width = percent + '%';
+        handle.style.left = percent + '%';
+        range.value = percent;
+      }
+
+      // Загрузка ДО
+      beforeInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (beforeUrl) URL.revokeObjectURL(beforeUrl);
+        beforeUrl = URL.createObjectURL(file);
+        beforeImg.src = beforeUrl;
+      });
+
+      // Загрузка ПОСЛЕ
+      afterInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (afterUrl) URL.revokeObjectURL(afterUrl);
+        afterUrl = URL.createObjectURL(file);
+        afterImg.src = afterUrl;
+      });
+
+      // Ползунок
+      range.addEventListener('input', function(e) {
+        const p = parseInt(e.target.value, 10);
+        update(p);
+      });
+
+      // Мышь/касания: перетаскивание ручки
+      let isDragging = false;
+      function startDrag() { isDragging = true; }
+      function stopDrag() { isDragging = false; }
+
+      handle.addEventListener('mousedown', (e) => {
+        startDrag();
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+      });
+
+      handle.addEventListener('touchstart', () => {
+        startDrag();
+        document.addEventListener('touchmove', onMoveTouch, {passive: false});
+        document.addEventListener('touchend', onUp);
+      });
+
+      function onMove(e) {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        x = Math.max(0, Math.min(rect.width, x));
+        const p = Math.round((x / rect.width) * 100);
+        update(p);
+      }
+      function onMoveTouch(e) {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        let x = touch.clientX - rect.left;
+        x = Math.max(0, Math.min(rect.width, x));
+        const p = Math.round((x / rect.width) * 100);
+        update(p);
+        e.preventDefault();
+      }
+      function onUp() {
+        stopDrag();
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMoveTouch);
+        document.removeEventListener('touchend', onUp);
+      }
+
+      // Клавиатура: стрелки
+      handle.addEventListener('keydown', (e) => {
+        const step = e.shiftKey ? 5 : 1;
+        let p = parseInt(getComputedStyle(handle).left) || 50;
+        if (e.key === 'ArrowLeft') {
+          p = Math.max(0, p - step);
+          update(p);
+        } else if (e.key === 'ArrowRight') {
+          p = Math.min(100, p + step);
+          update(p);
+        }
+      });
+    })();
+  </script>
+
+  <p>Замени src у DO/ПОСЛЕ на свои изображения, или загружайте их выше через поля загрузки.</p>
+</body>
+</html>
